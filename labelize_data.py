@@ -69,6 +69,6 @@ def process_reports(directory, output_file):
 
 # Example usage
 if __name__ == "__main__":
-    directory = "path_to_your_pdf_reports"  # Change this to the folder containing your PDFs
+    directory = "situtation reports"  # Change this to the folder containing your PDFs
     output_file = "situation_reports.csv"
     process_reports(directory, output_file)
