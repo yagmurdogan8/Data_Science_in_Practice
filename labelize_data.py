@@ -1,10 +1,9 @@
 import re
-import os
 import csv
-import glob
+import os
 from PyPDF2 import PdfReader
 
-def extract_metadata_from_pdf(file_path):
+def extract_metadata_from_text(text):
     metadata = {
         "date": None,
         "people_involved": [],
@@ -12,24 +11,17 @@ def extract_metadata_from_pdf(file_path):
         "key_points": []
     }
     
-    # Read the content of the PDF
-    reader = PdfReader(file_path)
-    text = ""
-    for page in reader.pages:
-        text += page.extract_text()
-    
-    # Extract metadata
-    # Example: Extract date
-    date_match = re.search(r"(\d{1,2} [A-Za-z]+ \d{4})", text)
+    # Extract date in the format "26 June 2024"
+    date_match = re.search(r"\b(\d{1,2}\s[A-Za-z]+\s\d{4})\b", text)
     if date_match:
-        metadata["date"] = date_match.group(0)
+        metadata["date"] = date_match.group(1)
     
-    # Example: Extract people involved (basic regex for names)
-    people_match = re.findall(r"[A-Z][a-z]+\s[A-Z][a-z]+", text)
-    if people_match:
-        metadata["people_involved"] = list(set(people_match))  # Deduplicate names
+    # Extract proper names (filter noise)
+    people_matches = re.findall(r"\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)\b", text)
+    common_noise = {"Haiti Matters", "United Nations", "Food and Agriculture Organization", "Médecins Sans Frontières"}
+    metadata["people_involved"] = [name for name in set(people_matches) if name not in common_noise]
     
-    # Example: Extract situation type keywords (customize as needed)
+    # Identify type of situation by keywords
     if "gang violence" in text.lower():
         metadata["type_of_situation"] = "Gang Violence"
     elif "humanitarian aid" in text.lower():
@@ -37,25 +29,32 @@ def extract_metadata_from_pdf(file_path):
     elif "political crisis" in text.lower():
         metadata["type_of_situation"] = "Political Crisis"
     
-    # Example: Extract key points (customize as needed)
-    bullet_points = re.findall(r"- ([^\n]+)", text)
-    if bullet_points:
-        metadata["key_points"] = bullet_points
+    # Extract bullet points or short paragraphs as key points
+    bullets = re.findall(r"[-•]\s+(.*?)(?:\n|$)", text)
+    metadata["key_points"] = [point.strip() for point in bullets if len(point.split()) > 3]
     
     return metadata
 
-def process_reports(directory, output_file):
+def process_pdf(file_path):
+    reader = PdfReader(file_path)
+    text = " ".join(page.extract_text() for page in reader.pages)
+    return extract_metadata_from_text(text)
+
+def process_reports(input_dir, output_file):
     all_data = []
     
     # Iterate through all PDF files in the directory
-    for file_path in glob.glob(os.path.join(directory, "*.pdf")):
-        print(f"Processing: {file_path}")
-        metadata = extract_metadata_from_pdf(file_path)
-        all_data.append(metadata)
+    for file_name in os.listdir(input_dir):
+        if file_name.endswith(".pdf"):
+            file_path = os.path.join(input_dir, file_name)
+            print(f"Processing: {file_name}")
+            metadata = process_pdf(file_path)
+            all_data.append(metadata)
     
-    # Write data to CSV
+    # Write results to a CSV file
     with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=["date", "people_involved", "type_of_situation", "key_points"])
+        fieldnames = ["date", "people_involved", "type_of_situation", "key_points"]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         for data in all_data:
             writer.writerow({
@@ -64,11 +63,11 @@ def process_reports(directory, output_file):
                 "type_of_situation": data["type_of_situation"],
                 "key_points": "; ".join(data["key_points"])
             })
-
+    
     print(f"Data saved to {output_file}")
 
 # Example usage
 if __name__ == "__main__":
-    directory = "situtation reports"  # Change this to the folder containing your PDFs
-    output_file = "situation_reports.csv"
-    process_reports(directory, output_file)
+    input_directory = "situtation reports"  
+    output_csv = "situation_reports_refined.csv"
+    process_reports(input_directory, output_csv)
