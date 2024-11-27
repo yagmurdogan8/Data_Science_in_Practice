@@ -1,7 +1,7 @@
 from transformers import pipeline
 
 # Step 1: Load the data
-input_csv = "haiti_situation_reports_final.csv"
+input_csv = "haiti_situation_reports_fetch.csv"
 output_csv = "haiti_situation_reports_classified.csv"
 df = pd.read_csv(input_csv)
 
