@@ -1,0 +1,41 @@
+import pandas as pd
+import json
+from datetime import datetime
+
+# Load the CSV file
+data = pd.read_csv('extended_situation_reports.csv')
+
+# Function to generate JSON for each row based on the CEDAR template
+def generate_cedar_json(row):
+    return {
+        "@context": {
+            "schema": "http://schema.org/",
+            "pav": "http://purl.org/pav/",
+            "oslc": "http://open-services.net/ns/core#",
+        },
+        "Event Description": {"@value": row.get("Event Description", "Unknown")},
+        "Location": {"@value": row.get("Location", "Unknown")},
+        "Responsible Parties": {"@value": row.get("Responsible Parties", "Unknown")},
+        "Event Date": {"@value": row.get("Event Date", "Unknown"), "@type": "xsd:dateTime"},
+        "Gang Violence": [{"@value": row.get("Gang Violence", "No")}],
+        "Sexual Violence": [{"@value": row.get("Sexual Violence", "No")}],
+        "Famine": [{"@value": row.get("Famine", "No")}],
+        "schema:isBasedOn": "https://repo.metadatacenter.org/templates/d8098444-54c7-45f5-91bc-0f9325f946f2",
+        "schema:name": "HAITI metadata",
+        "schema:description": "Creating metadata on Haiti situation reports",
+        "pav:createdOn": datetime.now().isoformat(),
+        "pav:createdBy": "https://metadatacenter.org/users/0b8e97f8-1fd8-4455-8582-6253e17d4e11",
+        "pav:lastUpdatedOn": datetime.now().isoformat(),
+        "oslc:modifiedBy": "https://metadatacenter.org/users/0b8e97f8-1fd8-4455-8582-6253e17d4e11",
+    }
+
+# Iterate over each row and generate JSON files
+output_files = []
+for index, row in data.iterrows():
+    json_data = generate_cedar_json(row)
+    output_file = f"cedar_metadata_{index}.json"
+    with open(output_file, 'w') as json_file:
+        json.dump(json_data, json_file, indent=4)
+    output_files.append(output_file)
+
+print(f"Generated JSON files: {output_files}")
